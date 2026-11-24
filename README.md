@@ -11,15 +11,44 @@ Students lose items on campus and there is no centralized place to report or sea
 - [Sprint 1] Create a lost/found item ad
 - [Sprint 1] See a list of all items
 - [Sprint 1] View details and edit/delete own items
-- [Later] Notify users when a similar item is found 
+- [Later] Notify users when a similar item is found
 
-**Data Model (Firestore):**
-- `users`: uid (string), email (string), displayName (string), createdAt (timestamp)
-- `items`: id (string), ownerId (string), title (string), description (string), location (string), type (string), createdAt (timestamp)
+## Data Model (Firestore)
 
-**Architecture:**
+### Collection: `items`
+
+| Field | Type | Set by |
+|---|---|---|
+| id | String | Server (Firestore document ID) |
+| ownerId | String | App (authenticated user ID) |
+| title | String | User |
+| description | String | User |
+| location | String | User |
+| categoryId | String | User (selected category) |
+| categoryName | String | App (selected category name) |
+| itemType | String | User |
+| dateOccurred | Timestamp | User |
+| createdAt | Timestamp | Server |
+| updatedAt | Timestamp | Server |
+
+### Collection: `categories`
+
+| Field | Type | Set by |
+|---|---|---|
+| id | String | App (Firestore document ID) |
+| name | String | App (reference data) |
+
+**Notes:**
+- `ownerId` is obtained from the authenticated Firebase session, never from user input.
+- `createdAt` and `updatedAt` use Firestore server timestamps.
+- `categoryId` references a document in the `categories` collection.
+- The `categories` collection is reference data and is not edited by regular users.
+
+## Architecture
+
 ```mermaid
 flowchart LR
     A[Android app<br/>Kotlin + Compose] -->|Auth SDK| B[Firebase Authentication]
     A -->|Firestore SDK| C[(Cloud Firestore)]
     D[Cloud Functions<br/>Lab 3] --> C
+```
