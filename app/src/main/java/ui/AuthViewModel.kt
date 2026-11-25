@@ -1,11 +1,10 @@
+
 package com.abel.lostandfound.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.abel.lostandfound.data.FirebaseAuthRepository
+import com.abel.lostandfound.data.AuthRepository
 import com.abel.lostandfound.domain.AuthValidator
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -18,20 +17,14 @@ data class AuthUiState(
     val isLoading: Boolean = false
 )
 
-class AuthViewModel : ViewModel() {
-    private val repository = FirebaseAuthRepository()
+class AuthViewModel(
+    private val repository: AuthRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState
 
-    private val _isLoggedIn = MutableStateFlow(Firebase.auth.currentUser != null)
-    val isLoggedIn: StateFlow<Boolean> = _isLoggedIn
-
-    init {
-        Firebase.auth.addAuthStateListener { auth ->
-            _isLoggedIn.value = auth.currentUser != null
-        }
-    }
+    val isLoggedIn: StateFlow<Boolean> = repository.isLoggedIn
 
     fun onEmailChange(email: String) {
         _uiState.value = _uiState.value.copy(email = email, error = null)
@@ -62,7 +55,7 @@ class AuthViewModel : ViewModel() {
             result.onFailure { exception ->
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = mapFirebaseError(exception as Exception)
+                    error = mapFirebaseError(exception)
                 )
             }.onSuccess {
                 _uiState.value = _uiState.value.copy(isLoading = false)
@@ -74,10 +67,15 @@ class AuthViewModel : ViewModel() {
         val state = _uiState.value
         val emailError = AuthValidator.validateEmail(state.email)
         val passwordError = AuthValidator.validatePassword(state.password)
-        val confirmError = AuthValidator.validatePasswordConfirmation(state.password, state.confirmPassword)
+        val confirmError = AuthValidator.validatePasswordConfirmation(
+            state.password,
+            state.confirmPassword
+        )
 
         if (emailError != null || passwordError != null || confirmError != null) {
-            _uiState.value = state.copy(error = emailError ?: passwordError ?: confirmError)
+            _uiState.value = state.copy(
+                error = emailError ?: passwordError ?: confirmError
+            )
             return
         }
 
@@ -88,7 +86,7 @@ class AuthViewModel : ViewModel() {
             result.onFailure { exception ->
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = mapFirebaseError(exception as Exception)
+                    error = mapFirebaseError(exception)
                 )
             }.onSuccess {
                 _uiState.value = _uiState.value.copy(isLoading = false)
@@ -100,13 +98,15 @@ class AuthViewModel : ViewModel() {
         repository.logout()
     }
 
-    private fun mapFirebaseError(exception: Exception): String {
+    private fun mapFirebaseError(exception: Throwable): String {
         return when {
             exception.message?.contains("email address is already in use") == true ->
                 "An account with this email already exists."
+
             exception.message?.contains("password is invalid") == true ||
                     exception.message?.contains("credential is incorrect") == true ->
                 "Incorrect email or password."
+
             else -> "An error occurred: ${exception.message}"
         }
     }

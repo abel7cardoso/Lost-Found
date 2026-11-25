@@ -1,0 +1,119 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(data) {
+      return isSignedIn()
+        && data.ownerId == request.auth.uid;
+    }
+
+    function validItem(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'title',
+          'description',
+          'location',
+          'categoryId',
+          'categoryName',
+          'itemType',
+          'dateOccurred',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId',
+          'title',
+          'description',
+          'location',
+          'categoryId',
+          'categoryName',
+          'itemType',
+          'dateOccurred',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.ownerId is string
+        && data.title is string
+        && data.title.size() > 0
+        && data.title.size() <= 80
+        && data.description is string
+        && data.description.size() > 0
+        && data.description.size() <= 500
+        && data.location is string
+        && data.location.size() > 0
+        && data.categoryId is string
+        && data.categoryId.size() > 0
+        && data.categoryName is string
+        && data.categoryName.size() > 0
+        && data.itemType in ['lost', 'found']
+        && (data.dateOccurred == null || data.dateOccurred is timestamp)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && data.title != data.description
+        && exists(/databases/$(database)/documents/categories/$(data.categoryId))
+        && get(/databases/$(database)/documents/categories/$(data.categoryId)).data.name == data.categoryName;
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /items/{itemId} {
+      // All authenticated users can see published items.
+      allow read: if isSignedIn();
+
+      allow create: if isOwner(request.resource.data)
+        && validItem(request.resource.data)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow update: if isOwner(resource.data)
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time
+        && validItem(request.resource.data);
+
+      allow delete: if isOwner(resource.data);
+    }
+
+    match /claims/{claimId} {
+      allow read: if isOwner(resource.data);
+
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasAll([
+          'itemId',
+          'itemTitle',
+          'ownerId',
+          'claimantId',
+          'claimantEmail',
+          'createdAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'itemId',
+          'itemTitle',
+          'ownerId',
+          'claimantId',
+          'claimantEmail',
+          'createdAt'
+        ])
+        && request.resource.data.claimantId == request.auth.uid
+        && request.resource.data.ownerId is string
+        && request.resource.data.ownerId != request.auth.uid
+        && request.resource.data.itemId is string
+        && request.resource.data.itemTitle is string
+        && request.resource.data.claimantEmail is string
+        && request.resource.data.createdAt == request.time
+        && exists(/databases/$(database)/documents/items/$(request.resource.data.itemId))
+        && get(/databases/$(database)/documents/items/$(request.resource.data.itemId)).data.ownerId == request.resource.data.ownerId
+        && get(/databases/$(database)/documents/items/$(request.resource.data.itemId)).data.itemType == 'found';
+
+      allow update, delete: if false;
+    }
+  }
+}
