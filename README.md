@@ -52,3 +52,32 @@ flowchart LR
     A -->|Firestore SDK| C[(Cloud Firestore)]
     D[Cloud Functions<br/>Lab 3] --> C
 ```
+
+
+## Tech Stack
+
+| Component | Technology |
+|---|---|
+| Programming language | Kotlin |
+| UI framework | Jetpack Compose |
+| Authentication | Firebase Authentication |
+| Cloud database | Cloud Firestore |
+| Architecture | MVVM |
+| Data layer | Repository Pattern |
+| Asynchronous operations | Kotlin Coroutines and Flow |
+| IDE | Android Studio |
+| Version control | Git and GitHub |
+
+## Definition of Done
+
+A feature is considered done when:
+
+- The feature works correctly in the Android application.
+- User input is validated before data is saved.
+- Invalid input does not create or update Firestore records.
+- Firebase operations are handled through the repository layer.
+- UI state is managed by ViewModels.
+- Loading and error states are handled where applicable.
+- Firestore security rules protect data access.
+- Changes are committed and pushed to the GitHub repository.
+- The application builds and runs without errors.
